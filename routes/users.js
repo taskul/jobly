@@ -11,7 +11,7 @@ const User = require("../models/user");
 const { createToken } = require("../helpers/tokens");
 const userNewSchema = require("../schemas/userNew.json");
 const userUpdateSchema = require("../schemas/userUpdate.json");
-
+const generator = require('generate-password')
 const router = express.Router();
 
 
@@ -27,15 +27,24 @@ const router = express.Router();
  * Authorization required: admin
  **/
 
-router.post("/", ensureIsAdmin, async function (req, res, next) {
+router.post("/", async function (req, res, next) {
   try {
+    // setting a random password for the user
+    // then the jwt token can be sent to the user and they will use it
+    // to access user profile where they can change the password to 
+    // what they want. 
+    const password = generator.generate({
+      length: 10,
+      numbers: true
+    })
+    req.body.password = password
     const validator = jsonschema.validate(req.body, userNewSchema);
     if (!validator.valid) {
       const errs = validator.errors.map(e => e.stack);
       throw new BadRequestError(errs);
     }
 
-    const user = await User.register(req.body);
+    const user = await User.register({ ...req.body, isAdmin: false });
     const token = createToken(user);
     return res.status(201).json({ user, token });
   } catch (err) {
